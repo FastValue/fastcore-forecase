@@ -5,9 +5,18 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
 
+
 #define NK_IMPLEMENTATION
+#define NK_INCLUDE_FONT_BAKING
+#define NK_INCLUDE_VERTEX_BUFFER_OUTPUT
+#define NK_INCLUDE_DEFAULT_ALLOCATOR
+#define NK_INCLUDE_STANDARD_IO
+#define NK_INCLUDE_DEFAULT_FONT
 #include <nuklear.h>
+
+#define NK_SDL_RENDERER_IMPLEMENTATION
 #include <nuklear_sdl_renderer.h>
+
 
 // Predefined parameter sets
 typedef struct {
@@ -229,7 +238,9 @@ int main(void) {
 
     struct nk_font_atlas *atlas;
     nk_sdl_font_stash_begin(&atlas);
+    struct nk_font *droid = nk_font_atlas_add_from_file(atlas, "path/to/your/font.ttf", 14, 0);
     nk_sdl_font_stash_end();
+    nk_style_set_font(ctx, &droid->handle);
 
     bg.r = 0.10f, bg.g = 0.18f, bg.b = 0.24f, bg.a = 1.0f;
 
