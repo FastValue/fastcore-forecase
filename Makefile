@@ -16,3 +16,5 @@ run-wine:
 	docker run --rm -e DISPLAY=:0.0 -v /tmp/.X11-unix:/tmp/.X11-unix \
 		-v $(PWD)/dist:/src/dist -w /src --user $(id -u):$(id -g) cdrx/pyinstaller-windows:python3 \
 		"wine dist/windows/forecast.exe"
+
+# gcc -o fcforecast -I../raylib-4.5.0_linux_amd64/include -L../raylib-4.5.0_linux_amd64/lib -I../raygui-3.6/src ../forecast.c -l:libraylib.a -lm
