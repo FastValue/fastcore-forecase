@@ -197,6 +197,32 @@ def run_forecast():
     canvas.draw()
     canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
 
+    # Create a frame for the table
+    table_frame = ttk.Frame(plot_frame, height=int(root.winfo_height() * 0.25))
+    table_frame.pack(fill=tk.BOTH, expand=True)
+
+    # Create the table
+    columns = ("Month", "Companies", "Users", "Storage Usage (GB)", "Revenue ($)", "Expense ($)", "Net Profit ($)", "Cumulative Profit ($)")
+    table = ttk.Treeview(table_frame, columns=columns, show="headings")
+    for col in columns:
+        table.heading(col, text=col)
+        table.column(col, anchor=tk.E, width=int(table_frame.winfo_width() / len(columns)))  # Adjust column width
+
+    # Insert data into the table
+    for month in range(months):
+        table.insert("", "end", values=(
+            month + 1,
+            f"{company_growth[month]:.0f}",
+            f"{user_growth[month]:.0f}",
+            f"{avg_monthly_storage_usage[month]:.2f}",
+            f"{monthly_revenue[month]:.2f}",
+            f"{total_monthly_expense[month]:.2f}",
+            f"{monthly_net_profit[month]:.2f}",
+            f"{avg_cumulative_profit[month]:.2f}"
+        ))
+
+    table.pack(fill=tk.BOTH, expand=True)
+
 # Function to update input fields based on selected parameter set
 def update_parameters(event):
     selected_set = parameter_set_combobox.get()
