@@ -21,7 +21,8 @@ parameter_sets = {
         "acquisition_rate": 0.5,
         "initial_storage": 8000,
         "cost_per_gb": 0.08,
-        "iterations": 100
+        "iterations": 100,
+        "extra_gb_cost_type": "one-time"
     },
     "Cloud Server/S3": {
         "initial_investment": 0,
@@ -38,7 +39,8 @@ parameter_sets = {
         "acquisition_rate": 0.5,
         "initial_storage": 200,
         "cost_per_gb": 0.02,
-        "iterations": 100
+        "iterations": 100,
+        "extra_gb_cost_type": "monthly"
     }
 }
 
@@ -70,6 +72,7 @@ def run_forecast():
     cost_per_gb = float(cost_per_gb_entry.get())
     initial_storage = float(initial_storage_entry.get())
     iterations = int(iterations_entry.get())
+    extra_gb_cost_type = extra_gb_cost_type_combobox.get()
 
     expenses = {
         "colocation": colocation_expense,
@@ -109,16 +112,19 @@ def run_forecast():
         monthly_storage_usage = [users * avg_gb_per_user for users in user_growth]
         monthly_revenue = [usage * price_per_gb for usage in monthly_storage_usage]
 
-        total_monthly_expense = sum(expenses.values())
+        total_monthly_expense = [sum(expenses.values())] * months
         one_time_extra_usage_cost = 0
         extra_usage_applied = False
-        for usage in monthly_storage_usage:
+        for month, usage in enumerate(monthly_storage_usage):
             if usage > initial_storage and not extra_usage_applied:
                 extra_usage = usage - initial_storage
-                one_time_extra_usage_cost += extra_usage * cost_per_gb
-                extra_usage_applied = True
+                if extra_gb_cost_type == "one-time":
+                    one_time_extra_usage_cost += extra_usage * cost_per_gb
+                    extra_usage_applied = True
+                elif extra_gb_cost_type == "monthly":
+                    total_monthly_expense[month] += extra_usage * cost_per_gb
 
-        monthly_net_profit = [revenue - total_monthly_expense for revenue in monthly_revenue]
+        monthly_net_profit = [revenue - expense for revenue, expense in zip(monthly_revenue, total_monthly_expense)]
         cumulative_profit = np.cumsum(monthly_net_profit) - initial_investment
         cumulative_profit = [profit - one_time_extra_usage_cost if i == 0 else profit for i, profit in enumerate(cumulative_profit)]
 
@@ -146,7 +152,6 @@ def run_forecast():
     avg_break_even_month = np.mean([month for month in break_even_months if month is not None])
 
     total_net_profit = avg_cumulative_profit[-1]
-    ROI = (total_net_profit / initial_investment) * 100
     risk_of_no_return = (no_return_count / iterations) * 100
 
     results_text.delete(1.0, tk.END)
@@ -157,7 +162,6 @@ def run_forecast():
     results_text.insert(tk.END, f"Price per GB: ${price_per_gb:.2f}\n")
     results_text.insert(tk.END, f"Average GB per user: {avg_gb_per_user} GB\n")
     results_text.insert(tk.END, f"Total Net Profit after {months} months: ${total_net_profit:.2f}\n")
-    results_text.insert(tk.END, f"ROI after {months} months: {ROI:.2f}%\n")
     results_text.insert(tk.END, f"Risk of No Return: {risk_of_no_return:.2f}%\n")
     results_text.insert(tk.END, f"Standard Deviation of Cumulative Profit: {std_cumulative_profit[-1]:.2f}\n")
     results_text.insert(tk.END, f"Standard Deviation of Monthly Storage Usage: {std_monthly_storage_usage[-1]:.2f} GB\n")
@@ -227,6 +231,7 @@ def update_parameters(event):
     cost_per_gb_entry.insert(0, params["cost_per_gb"])
     iterations_entry.delete(0, tk.END)
     iterations_entry.insert(0, params["iterations"])
+    extra_gb_cost_type_combobox.set(params["extra_gb_cost_type"])
 
 # Create the main window
 root = tk.Tk()
@@ -236,7 +241,7 @@ root.title("Forecast Application")
 root.grid_columnconfigure(0, weight=0)
 root.grid_columnconfigure(1, weight=0)
 root.grid_columnconfigure(2, weight=4)
-root.grid_rowconfigure(17, weight=1)
+root.grid_rowconfigure(18, weight=1)
 
 # Create and place the parameter set dropdown
 ttk.Label(root, text="Parameter Set:").grid(row=0, column=0, sticky="ew")
@@ -316,22 +321,27 @@ cost_per_gb_entry = ttk.Entry(root)
 cost_per_gb_entry.insert(0, parameter_sets[default_set]["cost_per_gb"])
 cost_per_gb_entry.grid(row=14, column=1, sticky="ew")
 
-ttk.Label(root, text="Iterations:").grid(row=15, column=0, sticky="ew")
+ttk.Label(root, text="Extra GB Cost Type:").grid(row=15, column=0, sticky="ew")
+extra_gb_cost_type_combobox = ttk.Combobox(root, values=["one-time", "monthly"])
+extra_gb_cost_type_combobox.grid(row=15, column=1, sticky="ew")
+extra_gb_cost_type_combobox.set(parameter_sets[default_set]["extra_gb_cost_type"])
+
+ttk.Label(root, text="Iterations:").grid(row=16, column=0, sticky="ew")
 iterations_entry = ttk.Entry(root)
 iterations_entry.insert(0, parameter_sets[default_set]["iterations"])
-iterations_entry.grid(row=15, column=1, sticky="ew")
+iterations_entry.grid(row=16, column=1, sticky="ew")
 
 # Create and place the run button
 run_button = ttk.Button(root, text="Run Forecast", command=run_forecast)
-run_button.grid(row=16, column=0, columnspan=2, sticky="ew")
+run_button.grid(row=17, column=0, columnspan=2, sticky="ew")
 
 # Create and place the results text box
 results_text = tk.Text(root, height=15, width=50)
-results_text.grid(row=17, column=0, columnspan=2, sticky="nsew")
+results_text.grid(row=18, column=0, columnspan=2, sticky="nsew")
 
 # Create and place the plot frame
 plot_frame = ttk.Frame(root, width=800)
-plot_frame.grid(row=0, column=2, rowspan=18, sticky="nsew")  # Adjust rowspan to 17
+plot_frame.grid(row=0, column=2, rowspan=19, sticky="nsew")  # Adjust rowspan to 17
 
 # Run the main loop
 root.mainloop()
