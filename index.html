@@ -70,11 +70,56 @@
             width: 100%;
             height: 100%;
         }
-        .results-container {
+        .results-and-table-container {
+            display: flex;
+            gap: 20px;
             width: 100%;
+            height: 200px; /* Changed from 400px to 200px */
+        }
+        .results-container {
+            width: 30%;
+            height: 100%;
         }
         .results-container textarea {
             width: 100%;
+            height: 100%;
+            resize: none;
+        }
+        .table-container {
+            width: 70%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 0;
+        }
+        thead {
+            background: #f2f2f2;
+            display: table;
+            width: calc(100% - 1em); /* Subtract scrollbar width */
+            table-layout: fixed;
+        }
+        tbody {
+            display: block;
+            overflow-y: scroll;
+            max-height: calc(200px - 37px); /* Container height minus header */
+        }
+        tbody tr {
+            display: table;
+            width: 100%;
+            table-layout: fixed;
+        }
+        th, td {
+            padding: 8px;
+            text-align: right;
+            width: 12.5%; /* 100% / 8 columns */
+            box-sizing: border-box;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
         .progress-container {
             display: none;
@@ -162,6 +207,12 @@
             <label for="costPerGB">Cost per GB extra:</label>
             <input type="number" id="costPerGB">
 
+            <label for="extraGBCostType">Extra GB Cost Type:</label>
+            <select id="extraGBCostType">
+                <option value="one-time">One-time</option>
+                <option value="monthly">Monthly</option>
+            </select>
+
             <label for="iterations">Iterations:</label>
             <input type="number" id="iterations">
 
@@ -171,9 +222,26 @@
             <canvas id="forecastChart"></canvas>
         </div>
     </div>
-    <div class="container">
+    <div class="container results-and-table-container">
         <div class="results-container">
-            <textarea id="resultsText" rows="15" readonly></textarea>
+            <textarea id="resultsText" readonly></textarea>
+        </div>
+        <div class="table-container">
+            <table id="resultsTable">
+                <thead>
+                    <tr>
+                        <th>Month</th>
+                        <th>Companies</th>
+                        <th>Users</th>
+                        <th>Storage Usage (GB)</th>
+                        <th>Revenue ($)</th>
+                        <th>Expense ($)</th>
+                        <th>Net Profit ($)</th>
+                        <th>Cumulative Profit ($)</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
         </div>
     </div>
     <div class="progress-container" id="progressContainer">
@@ -203,7 +271,8 @@
                 acquisitionRate: 0.5,
                 initialStorage: 8000,
                 costPerGB: 0.08,
-                iterations: 100
+                iterations: 100,
+                extraGBCostType: "one-time"
             },
             "Cloud Server/S3": {
                 initialInvestment: 0,
@@ -220,7 +289,8 @@
                 acquisitionRate: 0.5,
                 initialStorage: 200,
                 costPerGB: 0.02,
-                iterations: 100
+                iterations: 100,
+                extraGBCostType: "monthly"
             }
         };
 
@@ -244,6 +314,7 @@
             document.getElementById('initialStorage').value = params.initialStorage;
             document.getElementById('costPerGB').value = params.costPerGB;
             document.getElementById('iterations').value = params.iterations;
+            document.getElementById('extraGBCostType').value = params.extraGBCostType;
         }
 
         document.addEventListener('DOMContentLoaded', (event) => {
@@ -290,6 +361,7 @@
             const costPerGB = parseFloat(document.getElementById('costPerGB').value);
             const initialStorage = parseFloat(document.getElementById('initialStorage').value);
             const iterations = parseInt(document.getElementById('iterations').value);
+            const extraGBCostType = document.getElementById('extraGBCostType').value;
 
             const expenses = {
                 colocation: colocationExpense,
@@ -301,17 +373,22 @@
             let breakEvenMonths = [];
             let noReturnCount = 0;
             let userGrowth = [];
+            let companyGrowth = [];
+            let monthlyRevenue = [];
+            let totalMonthlyExpense = [];
+            let monthlyNetProfit = [];
+            let lastIterationMonthlyCumulativeProfit = [];
 
             for (let i = 0; i < iterations; i++) {
                 if (cancelForecastFlag) {
                     break;
                 }
 
-                let companyGrowth = [initialCompanies];
+                companyGrowth = [initialCompanies];
                 userGrowth = [initialUsers];
+                monthlyRevenue = [];
                 let monthlyStorageUsage = [];
-                let monthlyRevenue = [];
-                let totalMonthlyExpense = colocationExpense + marketingExpense;
+                let iterationMonthlyExpense = Array(months).fill(colocationExpense + marketingExpense);
                 let oneTimeExtraUsageCost = 0;
                 let extraUsageApplied = false;
 
@@ -329,13 +406,28 @@
 
                     if (usage > initialStorage && !extraUsageApplied) {
                         const extraUsage = usage - initialStorage;
-                        oneTimeExtraUsageCost += extraUsage * costPerGB;
-                        extraUsageApplied = true;
+                        if (extraGBCostType === "one-time") {
+                            oneTimeExtraUsageCost += extraUsage * costPerGB;
+                            extraUsageApplied = true;
+                        } else if (extraGBCostType === "monthly") {
+                            iterationMonthlyExpense[month - 1] += extraUsage * costPerGB;
+                        }
                     }
                 }
 
-                const monthlyNetProfit = monthlyRevenue.map(revenue => revenue - totalMonthlyExpense);
-                let cumulativeProfit = monthlyNetProfit.map((profit, i) => monthlyNetProfit.slice(0, i + 1).reduce((a, b) => a + b, 0) - initialInvestment);
+                // Store the last iteration's values for table display
+                if (i === iterations - 1) {
+                    totalMonthlyExpense = iterationMonthlyExpense;
+                    monthlyNetProfit = monthlyRevenue.map((revenue, index) => revenue - iterationMonthlyExpense[index]);
+                    lastIterationMonthlyCumulativeProfit = monthlyNetProfit.map((profit, i) => 
+                        monthlyNetProfit.slice(0, i + 1).reduce((a, b) => a + b, 0) - initialInvestment - (i === 0 ? oneTimeExtraUsageCost : 0)
+                    );
+                }
+
+                const iterationMonthlyNetProfit = monthlyRevenue.map((revenue, index) => revenue - iterationMonthlyExpense[index]);
+                let cumulativeProfit = iterationMonthlyNetProfit.map((profit, i) => 
+                    iterationMonthlyNetProfit.slice(0, i + 1).reduce((a, b) => a + b, 0) - initialInvestment
+                );
                 cumulativeProfit = cumulativeProfit.map((profit, i) => i === 0 ? profit - oneTimeExtraUsageCost : profit);
 
                 cumulativeProfits.push(cumulativeProfit);
@@ -364,7 +456,6 @@
             const avgBreakEvenMonth = breakEvenMonths.filter(month => month !== -1).reduce((sum, month) => sum + month, 0) / breakEvenMonths.filter(month => month !== -1).length;
 
             const totalNetProfit = avgCumulativeProfit[avgCumulativeProfit.length - 1];
-            const ROI = (totalNetProfit / initialInvestment) * 100;
             const riskOfNoReturn = (noReturnCount / iterations) * 100;
 
             const resultsText = document.getElementById('resultsText');
@@ -376,7 +467,6 @@
             resultsText.value += `Price per GB: $${pricePerGB.toFixed(2)}\n`;
             resultsText.value += `Average GB per user: ${avgGBPerUser} GB\n`;
             resultsText.value += `Total Net Profit after ${months} months: $${totalNetProfit.toFixed(2)}\n`;
-            resultsText.value += `ROI after ${months} months: ${ROI.toFixed(2)}%\n`;
             resultsText.value += `Risk of No Return: ${riskOfNoReturn.toFixed(2)}%\n`;
             resultsText.value += `Standard Deviation of Cumulative Profit: ${stdCumulativeProfit[stdCumulativeProfit.length - 1].toFixed(2)}\n`;
             resultsText.value += `Standard Deviation of Monthly Storage Usage: ${stdMonthlyStorageUsage[stdMonthlyStorageUsage.length - 1].toFixed(2)} GB\n`;
@@ -519,6 +609,20 @@
                     }
                 }
             });
+
+            const resultsTableBody = document.getElementById('resultsTable').getElementsByTagName('tbody')[0];
+            resultsTableBody.innerHTML = '';
+            for (let month = 0; month < months; month++) {
+                const row = resultsTableBody.insertRow();
+                row.insertCell(0).innerText = month + 1;
+                row.insertCell(1).innerText = companyGrowth[month].toFixed(2);
+                row.insertCell(2).innerText = userGrowth[month].toFixed(2);
+                row.insertCell(3).innerText = avgMonthlyStorageUsage[month].toFixed(2);
+                row.insertCell(4).innerText = monthlyRevenue[month].toFixed(2);
+                row.insertCell(5).innerText = totalMonthlyExpense[month].toFixed(2);
+                row.insertCell(6).innerText = monthlyNetProfit[month].toFixed(2);
+                row.insertCell(7).innerText = lastIterationMonthlyCumulativeProfit[month].toFixed(2);
+            }
         }
     </script>
 </body>
