@@ -459,11 +459,7 @@
             const riskOfNoReturn = (noReturnCount / iterations) * 100;
 
             const resultsText = document.getElementById('resultsText');
-            resultsText.value = "\nCompany and User Growth Metrics (Averaged):\n";
-            userGrowth.forEach((users, month) => {
-                resultsText.value += `Month ${month + 1}: ${users.toFixed(0)} users\n`;
-            });
-            resultsText.value += "-----------------------------------\n";
+            resultsText.value = "";
             resultsText.value += `Price per GB: $${pricePerGB.toFixed(2)}\n`;
             resultsText.value += `Average GB per user: ${avgGBPerUser} GB\n`;
             resultsText.value += `Total Net Profit after ${months} months: $${totalNetProfit.toFixed(2)}\n`;
@@ -615,9 +611,9 @@
             for (let month = 0; month < months; month++) {
                 const row = resultsTableBody.insertRow();
                 row.insertCell(0).innerText = month + 1;
-                row.insertCell(1).innerText = companyGrowth[month].toFixed(2);
-                row.insertCell(2).innerText = userGrowth[month].toFixed(2);
-                row.insertCell(3).innerText = avgMonthlyStorageUsage[month].toFixed(2);
+                row.insertCell(1).innerText = companyGrowth[month].toFixed(0);
+                row.insertCell(2).innerText = userGrowth[month].toFixed(0);
+                row.insertCell(3).innerText = avgMonthlyStorageUsage[month].toFixed(0);
                 row.insertCell(4).innerText = monthlyRevenue[month].toFixed(2);
                 row.insertCell(5).innerText = totalMonthlyExpense[month].toFixed(2);
                 row.insertCell(6).innerText = monthlyNetProfit[month].toFixed(2);
