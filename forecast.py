@@ -22,7 +22,8 @@ parameter_sets = {
         "initial_storage": 8000,
         "cost_per_gb": 0.08,
         "iterations": 100,
-        "extra_gb_cost_type": "one-time"
+        "extra_gb_cost_type": "one-time",
+        "user_churn_rate": 0.05  # New parameter for user churn rate
     },
     "Cloud Server/S3": {
         "initial_investment": 0,
@@ -40,7 +41,8 @@ parameter_sets = {
         "initial_storage": 200,
         "cost_per_gb": 0.02,
         "iterations": 100,
-        "extra_gb_cost_type": "monthly"
+        "extra_gb_cost_type": "monthly",
+        "user_churn_rate": 0.05  # New parameter for user churn rate
     }
 }
 
@@ -73,6 +75,7 @@ def run_forecast():
     initial_storage = float(initial_storage_entry.get())
     iterations = int(iterations_entry.get())
     extra_gb_cost_type = extra_gb_cost_type_combobox.get()
+    user_churn_rate = float(user_churn_rate_entry.get())  # Get user churn rate
 
     expenses = {
         "colocation": colocation_expense,
@@ -107,7 +110,7 @@ def run_forecast():
             
             weights = np.exp(-np.arange(min_employees_per_company, max_employees_per_company + 1) / mean_company_size)
             new_users = new_companies * np.random.choice(np.arange(min_employees_per_company, max_employees_per_company + 1), p=weights/weights.sum())
-            user_growth.append(user_growth[-1] + new_users)
+            user_growth.append(user_growth[-1] + new_users - user_growth[-1] * user_churn_rate)  # Apply churn rate
 
         monthly_storage_usage = [users * avg_gb_per_user for users in user_growth]
         monthly_revenue = [usage * price_per_gb for usage in monthly_storage_usage]
@@ -258,6 +261,8 @@ def update_parameters(event):
     iterations_entry.delete(0, tk.END)
     iterations_entry.insert(0, params["iterations"])
     extra_gb_cost_type_combobox.set(params["extra_gb_cost_type"])
+    user_churn_rate_entry.delete(0, tk.END)
+    user_churn_rate_entry.insert(0, params["user_churn_rate"])  # Update user churn rate
 
 # Create the main window
 root = tk.Tk()
@@ -267,7 +272,7 @@ root.title("Forecast Application")
 root.grid_columnconfigure(0, weight=0)
 root.grid_columnconfigure(1, weight=0)
 root.grid_columnconfigure(2, weight=4)
-root.grid_rowconfigure(18, weight=1)
+root.grid_rowconfigure(19, weight=1)
 
 # Create and place the parameter set dropdown
 ttk.Label(root, text="Parameter Set:").grid(row=0, column=0, sticky="ew")
@@ -357,17 +362,22 @@ iterations_entry = ttk.Entry(root)
 iterations_entry.insert(0, parameter_sets[default_set]["iterations"])
 iterations_entry.grid(row=16, column=1, sticky="ew")
 
+ttk.Label(root, text="User Churn Rate:").grid(row=17, column=0, sticky="ew")
+user_churn_rate_entry = ttk.Entry(root)
+user_churn_rate_entry.insert(0, parameter_sets[default_set]["user_churn_rate"])
+user_churn_rate_entry.grid(row=17, column=1, sticky="ew")
+
 # Create and place the run button
 run_button = ttk.Button(root, text="Run Forecast", command=run_forecast)
-run_button.grid(row=17, column=0, columnspan=2, sticky="ew")
+run_button.grid(row=18, column=0, columnspan=2, sticky="ew")
 
 # Create and place the results text box
 results_text = tk.Text(root, height=15, width=50)
-results_text.grid(row=18, column=0, columnspan=2, sticky="nsew")
+results_text.grid(row=19, column=0, columnspan=2, sticky="nsew")
 
 # Create and place the plot frame
 plot_frame = ttk.Frame(root, width=800)
-plot_frame.grid(row=0, column=2, rowspan=19, sticky="nsew")  # Adjust rowspan to 17
+plot_frame.grid(row=0, column=2, rowspan=20, sticky="nsew")  # Adjust rowspan to 20
 
 # Run the main loop
 root.mainloop()
